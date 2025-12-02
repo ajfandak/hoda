@@ -1,13 +1,9 @@
-// components/chat-list.tsx
 "use client";
 
 import { useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { User, Bot } from "lucide-react";
-import { sendMessageWithId } from "@/app/actions"; // نام تابع عوض شد
-import { useSearchParams } from "next/navigation"; // اضافه شد
-
 
 interface Message {
   id: string;
@@ -17,98 +13,97 @@ interface Message {
 
 interface ChatListProps {
   messages: Message[];
+  isLoading: boolean;
 }
 
-export default function ChatList({ messages }: ChatListProps) {
-  const scrollRef = useRef<HTMLDivElement>(null);
+export default function ChatList({ messages, isLoading }: ChatListProps) {
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // هر بار که پیام‌ها تغییر کرد، به پایین اسکرول کن
+  // اسکرول خودکار به پایین وقتی پیام جدید می‌آید
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [messages]);
-
-  if (messages.length === 0) {
-    return (
-      <div className="h-full flex flex-col items-center justify-center text-gray-500 space-y-4 opacity-50">
-        <Bot className="w-20 h-20 mb-4" />
-        <p className="text-lg">شروع یک گفتگوی جدید...</p>
-      </div>
-    );
-  }
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isLoading]);
 
   return (
-    <div className="flex flex-col gap-6 pb-4">
-      {messages.map((msg) => (
-        <div
-          key={msg.id}
-          className={`flex gap-4 ${
-            msg.role === "user" ? "flex-row-reverse" : "flex-row"
-          }`}
-        >
-          {/* آیکون */}
+    <div className="h-full overflow-y-auto p-4 space-y-6">
+      {messages.length === 0 ? (
+        <div className="h-full flex flex-col items-center justify-center text-gray-500 space-y-4 opacity-50">
+          <Bot size={48} />
+          <p>برای شروع گفتگو پیامی بنویسید...</p>
+        </div>
+      ) : (
+        messages.map((message) => (
           <div
-            className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-              msg.role === "user" ? "bg-blue-600" : "bg-emerald-600"
+            key={message.id}
+            className={`flex w-full ${
+              message.role === "user" ? "justify-end" : "justify-start"
             }`}
           >
-            {msg.role === "user" ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
-          </div>
+            <div
+              className={`flex gap-3 max-w-[85%] ${
+                message.role === "user" ? "flex-row-reverse" : "flex-row"
+              }`}
+            >
+              {/* آیکون */}
+              <div
+                className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                  message.role === "user"
+                    ? "bg-blue-600 text-white"
+                    : "bg-green-600 text-white"
+                }`}
+              >
+                {message.role === "user" ? <User size={16} /> : <Bot size={16} />}
+              </div>
 
-          {/* حباب پیام */}
-          <div
-            className={`max-w-[85%] p-4 rounded-2xl text-sm leading-relaxed overflow-hidden ${
-              msg.role === "user"
-                ? "bg-blue-600/10 text-blue-100 rounded-tr-none border border-blue-600/20"
-                : "bg-gray-800 text-gray-100 rounded-tl-none border border-gray-700"
-            }`}
-          >
-            {/* نمایش مارک‌داون */}
-            <div className="markdown-body dir-auto" dir="auto">
-              {msg.role === "user" ? (
-                <p className="whitespace-pre-wrap">{msg.content}</p>
-              ) : (
-                <ReactMarkdown 
-                  remarkPlugins={[remarkGfm]}
-                  components={{
-                    // استایل‌دهی به کدها
-                    code({node, className, children, ...props}) {
-  const match = /language-(\w+)/.exec(className || '')
-  return match ? (
-    // تغییر: اضافه کردن dir="ltr" و text-left برای چپ‌چین شدن کدها
-    <div dir="ltr" className="bg-gray-950 text-left rounded-md p-3 my-2 overflow-x-auto border border-gray-700 font-mono text-sm">
-      <code className={className} {...props}>
-        {children}
-      </code>
-    </div>
-  ) : (
-    <code className="bg-gray-700/50 px-1.5 py-0.5 rounded text-orange-300 font-mono dir-ltr" {...props}>
-      {children}
-    </code>
-  )
-},
-                    // استایل‌دهی به لیست‌ها
-                    ul: ({children}) => <ul className="list-disc list-inside my-2 space-y-1">{children}</ul>,
-                    ol: ({children}) => <ol className="list-decimal list-inside my-2 space-y-1">{children}</ol>,
-                    // استایل‌دهی به تیترها
-                    h1: ({children}) => <h1 className="text-xl font-bold my-3 pb-2 border-b border-gray-700">{children}</h1>,
-                    h2: ({children}) => <h2 className="text-lg font-bold my-3">{children}</h2>,
-                    h3: ({children}) => <h3 className="text-base font-bold my-2">{children}</h3>,
-                    p: ({children}) => <p className="my-1">{children}</p>,
-                    a: ({children, href}) => <a href={href} target="_blank" className="text-blue-400 hover:underline">{children}</a>,
-                    strong: ({children}) => <strong className="font-bold text-white">{children}</strong>,
-                  }}
-                >
-                  {msg.content}
-                </ReactMarkdown>
-              )}
+              {/* حباب پیام */}
+              <div
+                className={`rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm ${
+                  message.role === "user"
+                    ? "bg-blue-600 text-white rounded-tr-none"
+                    : "bg-[#1e293b] text-gray-100 rounded-tl-none border border-gray-700"
+                }`}
+              >
+                {/* رندر کردن مارک‌داون برای پاسخ‌های هوش مصنوعی */}
+                {message.role === "assistant" ? (
+                  // تغییر: کلاس‌ها به یک دایو دور کامپوننت داده شد تا خطای تایپ رفع شود
+                  <div className="prose prose-invert prose-sm max-w-none break-words">
+                    <ReactMarkdown 
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        // استایل‌دهی سفارشی برای لینک‌ها و کدها
+                        a: ({node, ...props}) => <a target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline" {...props} />,
+                        code: ({node, ...props}) => <code className="bg-gray-800 px-1 py-0.5 rounded text-xs font-mono" {...props} />
+                      }}
+                    >
+                      {message.content}
+                    </ReactMarkdown>
+                  </div>
+                ) : (
+                  <div className="whitespace-pre-wrap break-words">{message.content}</div>
+                )}
+              </div>
+            </div>
+          </div>
+        ))
+      )}
+
+      {/* نمایش لودینگ در حین تایپ هوش مصنوعی */}
+      {isLoading && (
+        <div className="flex justify-start w-full">
+          <div className="flex gap-3 max-w-[85%]">
+            <div className="shrink-0 w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-white">
+              <Bot size={16} />
+            </div>
+            <div className="bg-[#1e293b] border border-gray-700 rounded-2xl rounded-tl-none px-4 py-3 flex items-center gap-1">
+              <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+              <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+              <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></span>
             </div>
           </div>
         </div>
-      ))}
-      {/* المان نامرئی برای اسکرول */}
-      <div ref={scrollRef} />
+      )}
+
+      <div ref={messagesEndRef} />
     </div>
   );
 }

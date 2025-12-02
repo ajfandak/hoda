@@ -1,95 +1,74 @@
-// components/sidebar.tsx
 "use client";
 
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { MessageSquare, Plus, Menu, X, User } from "lucide-react";
-import { useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { MessageSquare, Plus } from "lucide-react";
+import { getChats } from "@/app/actions";
 
 interface Chat {
   id: string;
-  title: string | null;
+  title: string;
+  createdAt: Date;
 }
 
-export default function Sidebar({ chats }: { chats: Chat[] }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const searchParams = useSearchParams();
-  const activeChatId = searchParams.get("id");
+interface SidebarProps {
+  userId: string;
+  activeChatId?: string;
+  onSelectChat: (id: string) => void;
+  onNewChat: () => void;
+}
+
+export default function Sidebar({ userId, activeChatId, onSelectChat, onNewChat }: SidebarProps) {
+  const [chats, setChats] = useState<Chat[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!userId) return;
+    
+    getChats(userId)
+      .then((data) => setChats(data))
+      .catch((err) => console.error(err))
+      .finally(() => setLoading(false));
+  }, [userId]);
 
   return (
-    <>
-      {/* دکمه منو برای موبایل - شناور بالا سمت راست */}
-      <div className="md:hidden fixed top-4 right-4 z-50">
-        <Button 
-          variant="secondary" 
-          size="icon" 
-          onClick={() => setIsOpen(!isOpen)}
-          className="bg-gray-800 text-white border border-gray-700 shadow-lg"
-        >
-          {isOpen ? <X /> : <Menu />}
-        </Button>
+    <div className="flex flex-col h-full bg-[#0d1117] text-gray-300 p-4">
+      <button
+        onClick={onNewChat}
+        className="flex items-center gap-2 w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg mb-6 transition-colors font-medium"
+      >
+        <Plus size={20} />
+        <span>چت جدید</span>
+      </button>
+
+      <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar">
+        {loading && <div className="text-center text-sm text-gray-500 mt-4">در حال بارگذاری...</div>}
+        
+        {!loading && chats.length === 0 && (
+          <div className="text-center text-sm text-gray-500 mt-4">هنوز گفتگویی ندارید</div>
+        )}
+
+        {!loading && chats.map((chat) => (
+          <button
+            key={chat.id}
+            onClick={() => onSelectChat(chat.id)}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-right transition-colors ${
+              activeChatId === chat.id
+                ? "bg-gray-800 text-white border border-gray-700"
+                : "hover:bg-gray-800/50 hover:text-white"
+            }`}
+          >
+            <MessageSquare size={18} className="shrink-0 text-gray-500" />
+            <div className="truncate text-sm w-full font-iransans">
+              {chat.title || "گفتگوی جدید"}
+            </div>
+          </button>
+        ))}
       </div>
 
-      {/* لایه تاریک پس‌زمینه در موبایل */}
-      {isOpen && (
-        <div 
-          className="fixed inset-0 bg-black/60 z-40 md:hidden backdrop-blur-sm"
-          onClick={() => setIsOpen(false)}
-        />
-      )}
-
-      {/* خود سایدبار */}
-      <aside 
-        className={`
-          fixed md:static inset-y-0 right-0 z-50 w-80 bg-gray-950 border-l border-gray-800 flex flex-col transition-transform duration-300 ease-in-out
-          ${isOpen ? "translate-x-0" : "translate-x-full md:translate-x-0"}
-        `}
-      >
-        <div className="p-4 border-b border-gray-800 flex items-center justify-between">
-          <h1 className="font-bold text-xl text-white">هُدا پلتفرم</h1>
-          <Link href="/" onClick={() => setIsOpen(false)}>
-            <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white hover:bg-gray-800">
-              <Plus className="w-5 h-5" />
-            </Button>
-          </Link>
-        </div>
-        
-        <div className="flex-1 overflow-y-auto p-2 space-y-2">
-          {chats.map((chat) => (
-            <Link 
-              key={chat.id} 
-              href={`/?id=${chat.id}`} 
-              className="block"
-              onClick={() => setIsOpen(false)}
-            >
-              <div
-                className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
-                  activeChatId === chat.id 
-                    ? "bg-blue-600/20 text-blue-100 border border-blue-600/30" 
-                    : "hover:bg-gray-900 text-gray-400 border border-transparent"
-                }`}
-              >
-                <MessageSquare className="w-4 h-4 shrink-0" />
-                <span className="truncate text-sm dir-auto text-right w-full">
-                  {chat.title || "گفتگوی جدید"}
-                </span>
-              </div>
-            </Link>
-          ))}
-        </div>
-
-        <div className="p-4 border-t border-gray-800 bg-gray-950/50">
-            <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center">
-                <User className="w-4 h-4 text-white" />
-            </div>
-            <div className="text-sm">
-                <p className="text-white font-medium">کاربر مهمان</p>
-            </div>
-            </div>
-        </div>
-      </aside>
-    </>
+      <div className="pt-4 mt-4 border-t border-gray-800">
+        <div className="text-xs text-center text-gray-600">هدی - دستیار هوشمند</div>
+      </div>
+    </div>
   );
 }
+// END OF FILE - مطمئن شوید این خط و پرانتز بسته بالای آن کپی شده باشد

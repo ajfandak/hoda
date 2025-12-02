@@ -1,61 +1,44 @@
-// components/chat-input.tsx
 "use client";
 
-import { useRef } from "react";
-import { useFormStatus } from "react-dom";
-import { Button } from "@/components/ui/button";
 import { Send, Loader2 } from "lucide-react";
-import { sendMessageWithId } from "@/app/actions"; // اتصال به اکشن جدید
-import { useSearchParams } from "next/navigation"; // برای خواندن ID از آدرس
 
-function SubmitButton() {
-  const { pending } = useFormStatus();
-
-  return (
-    <Button 
-      type="submit" 
-      size="icon" 
-      disabled={pending}
-      className={`h-[46px] w-[46px] rounded-xl transition-all ${
-        pending ? "bg-gray-600 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-500"
-      }`}
-    >
-      {pending ? (
-        <Loader2 className="w-5 h-5 animate-spin text-gray-300" />
-      ) : (
-        <Send className="w-5 h-5" />
-      )}
-    </Button>
-  );
+interface ChatInputProps {
+  input: string;
+  handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  handleSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
+  isLoading: boolean;
 }
 
-export default function ChatInput() {
-  const formRef = useRef<HTMLFormElement>(null);
-  const searchParams = useSearchParams();
-  
-  // اگر در URL پارامتر id وجود داشته باشد آن را می‌خواند، وگرنه undefined می‌شود
-  const chatId = searchParams.get("id") ?? undefined;
-
+export default function ChatInput({ input, handleInputChange, handleSubmit, isLoading }: ChatInputProps) {
   return (
-    <form 
-      ref={formRef}
-      action={async (formData) => {
-        // ارسال پیام به همراه شناسه چت (اگر باشد)
-        await sendMessageWithId(chatId, formData);
-        
-        // پاک کردن متن داخل اینپوت بعد از ارسال
-        formRef.current?.reset();
-      }} 
-      className="max-w-3xl mx-auto relative flex gap-2"
-    >
-      <input
-        name="content"
-        type="text"
-        placeholder="پیامی بنویسید..."
-        autoComplete="off"
-        className="flex-1 bg-gray-800 border border-gray-700 text-gray-100 text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500/50 placeholder:text-gray-500 disabled:opacity-50"
-      />
-      <SubmitButton />
-    </form>
+    <div className="p-4 border-t border-gray-800 bg-[#0d1117]">
+      <div className="max-w-3xl mx-auto">
+        <form onSubmit={handleSubmit} className="relative flex items-center">
+          <input
+            className="w-full bg-[#161b22] border border-gray-700 text-gray-100 rounded-xl px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all placeholder:text-gray-500"
+            placeholder="پیامی بنویسید..."
+            value={input}
+            onChange={handleInputChange}
+            disabled={isLoading}
+          />
+          <button
+            type="submit"
+            disabled={isLoading || !input.trim()}
+            className="absolute left-2 p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:hover:bg-blue-600 transition-colors"
+          >
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
+          </button>
+        </form>
+        <div className="text-center mt-2">
+          <p className="text-xs text-gray-500">
+            هوش مصنوعی ممکن است اشتباه کند. لطفاً اطلاعات مهم را بررسی کنید.
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }
