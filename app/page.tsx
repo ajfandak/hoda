@@ -4,9 +4,10 @@
 
 import { useChat } from 'ai/react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useEffect, useState, useRef, Suspense } from 'react'; // useRef اضافه شد
+import { useEffect, useState, useRef, Suspense } from 'react';
 
-import { getOrCreateUser, getChats } from '@/app/actions';
+// اطمینان حاصل کنید که getMessages را ایمپورت کرده‌اید
+import { getOrCreateUser, getChats, getMessages } from '@/app/actions'; 
 import Sidebar from "@/components/sidebar";
 import { ChatScreen } from '@/components/chat-screen';
 import ChatInput from '@/components/chat-input';
@@ -19,32 +20,37 @@ function ChatAppContent() {
   const [user, setUser] = useState<any>(null);
   const [chats, setChats] = useState<any[]>([]);
   
-  // 1. یک پرچم برای جلوگیری از اجرای اولیه useEffect
-  const isInitialLoad = useRef(true);
+  // جلوگیری از فچ کردن تکراری در بارگذاری اولیه
+  const initialMessagesLoaded = useRef(false);
+  
+  // *** تغییر مهم: این پرچم به ما کمک می‌کند بفهمیم آیا باید از دیتابیس بخوانیم یا نه ***
+  const shouldFetchMessages = useRef(true);
 
   const { messages, setMessages, input, handleInputChange, handleSubmit, isLoading } = useChat({
     api: '/api/chat',
-    body: { chatId: activeChatId },
-    // 2. در onFinish فقط لیست چت‌ها را آپدیت می‌کنیم
-    onFinish: async () => {
+    body: { chatId: activeChatId, userId: user?.id },
+    onFinish: async (message) => {
       if (user) {
+        // آپدیت لیست چت‌ها در سایدبار
         const updatedChats = await getChats(user.id);
         setChats(updatedChats);
 
-        // اگر چت جدیدی بود، به URL جدید ریدایرکت می‌کنیم
-        if (!activeChatId && updatedChats.length > chats.length) {
-            // پیدا کردن جدیدترین چت (معمولاً آخرین چت در آرایه مرتب شده بر اساس تاریخ)
-            const newChat = updatedChats.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+        // اگر در صفحه اصلی بودیم (چت جدید)
+        if (!activeChatId) {
+            const newChat = updatedChats.find(chat => chat.messages.some((m: any) => m.id === message.id));
             if (newChat) {
-                // با replace به جای push تا در تاریخچه مرورگر برنگردد
-                router.replace(`/?chatId=${newChat.id}`);
+                // *** نکته کلیدی: قبل از تغییر URL می‌گوییم "از دیتابیس نخوان!" ***
+                // چون ما الان آخرین پیام‌ها را در صفحه داریم و نمی‌خواهیم دیتابیس قدیمی آن‌ها را پاک کند
+                shouldFetchMessages.current = false;
+                
+                router.replace(`/?chatId=${newChat.id}`, { scroll: false });
             }
         }
       }
     }
   });
 
-  // افکت برای گرفتن اطلاعات اولیه کاربر و چت‌ها
+  // 1. دریافت اطلاعات کاربر و چت‌ها (فقط یکبار)
   useEffect(() => {
     const fetchData = async () => {
       const fetchedUser = await getOrCreateUser();
@@ -57,43 +63,65 @@ function ChatAppContent() {
     fetchData();
   }, []);
 
-  // 3. افکت اصلاح شده برای بارگذاری پیام‌های یک چت
+  // 2. مدیریت بارگذاری پیام‌ها (اصلاح شده برای جلوگیری از حذف پیام)
   useEffect(() => {
-    // در بارگذاری اولیه کامپوننت، این افکت را اجرا نکن
-    if (isInitialLoad.current) {
-        isInitialLoad.current = false;
-        // اگر chatId وجود داشت، پیام‌ها را برای اولین بار لود کن
-        if (activeChatId) {
-            const chat = chats.find(c => c.id === activeChatId);
-            if (chat && chat.messages.length > 0) {
-                setMessages(chat.messages);
-            }
-        }
+    // اگر chatId نداریم (صفحه جدید)، پیام‌ها را پاک کن و ریست کن
+    if (!activeChatId) {
+      setMessages([]);
+      initialMessagesLoaded.current = false;
+      shouldFetchMessages.current = true; // برای چت‌های بعدی آماده باش
+      return;
+    }
+
+    // *** چک کردن پرچم امنیتی ***
+    // اگر این پرچم false باشد، یعنی ما از پروسه "چت جدید" آمدیم و پیام‌ها در حافظه هستند
+    // پس نباید چیزی را فچ کنیم تا پیام‌ها نپرد.
+    if (shouldFetchMessages.current === false) {
+        // پرچم را به حالت عادی برمی‌گردانیم تا اگر کاربر روی چت دیگری کلیک کرد، کار کند
+        shouldFetchMessages.current = true;
+        initialMessagesLoaded.current = true; // فرض می‌کنیم لود شده است
+        return; 
+    }
+
+    // اگر قبلاً برای این چت لود کردیم، دوباره لود نکن
+    if (initialMessagesLoaded.current) {
         return;
     }
 
-    // این افکت فقط زمانی اجرا شود که کاربر بین چت‌ها جابجا می‌شود (activeChatId تغییر می‌کند)
-    if (activeChatId) {
-      const chat = chats.find(c => c.id === activeChatId);
-      // فقط در صورتی پیام‌ها را ست کن که از `useChat` خالی نباشند (یعنی کاربر در حال چت نباشد)
-      if (chat && !isLoading) {
-        setMessages(chat.messages);
+    // بارگذاری از دیتابیس (فقط وقتی کاربر روی چت‌های قدیمی کلیک می‌کند)
+    const fetchInitialMessages = async () => {
+      try {
+        const initialMessages = await getMessages(activeChatId);
+        if (initialMessages && initialMessages.length > 0) {
+          setMessages(initialMessages);
+        }
+        initialMessagesLoaded.current = true;
+      } catch (error) {
+        console.error("Failed to load messages:", error);
       }
-    } else {
-      // اگر به صفحه اصلی برگشتیم (چت جدید) پیام‌ها را خالی کن
-      setMessages([]);
-    }
-  }, [activeChatId, chats]); // setMessages و isLoading حذف شد تا تریگرهای ناخواسته کم شوند
+    };
+    
+    fetchInitialMessages();
+
+    // Cleanup: وقتی activeChatId عوض میشه، پرچم لود شدن رو ریست میکنیم
+    // اما فقط اگر واقعا چت عوض شده باشه (که توسط Dependency Array کنترل میشه)
+    return () => {
+        initialMessagesLoaded.current = false;
+    };
+
+  }, [activeChatId, setMessages]); 
 
 
   const handleNewChat = () => {
+    shouldFetchMessages.current = true; // اجازه فچ کردن بده
+    initialMessagesLoaded.current = false;
     router.push('/');
   };
 
   if (!user) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-background text-foreground">
-        در حال بارگذاری...
+        Loading...
       </div>
     );
   }
@@ -127,7 +155,7 @@ function ChatAppContent() {
 
 export default function Home() {
   return (
-    <Suspense fallback={<div className="flex h-screen w-screen items-center justify-center">در حال راه‌اندازی...</div>}>
+    <Suspense fallback={<div className="flex h-screen w-screen items-center justify-center">Loading...</div>}>
       <ChatAppContent />
     </Suspense>
   );
