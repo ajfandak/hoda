@@ -72,5 +72,9 @@ module.exports = {
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  // تغییر مهم اینجاست:
+  plugins: [
+    require("tailwindcss-animate"),
+    require("@tailwindcss/typography") // این خط اضافه شد
+  ],
 }
