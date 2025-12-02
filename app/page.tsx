@@ -4,17 +4,13 @@
 
 import { useChat } from 'ai/react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useEffect, useState, Suspense } from 'react'; // Suspense اضافه شد
+import { useEffect, useState, useRef, Suspense } from 'react'; // useRef اضافه شد
 
-// 1. ایمپورت کردن اکشن‌های سرور
 import { getOrCreateUser, getChats } from '@/app/actions';
-
-// 2. ایمپورت کامپوننت‌ها
 import Sidebar from "@/components/sidebar";
 import { ChatScreen } from '@/components/chat-screen';
 import ChatInput from '@/components/chat-input';
 
-// 3. ساخت یک کامپوننت داخلی که منطق اصلی را نگه می‌دارد
 function ChatAppContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -22,27 +18,33 @@ function ChatAppContent() {
 
   const [user, setUser] = useState<any>(null);
   const [chats, setChats] = useState<any[]>([]);
+  
+  // 1. یک پرچم برای جلوگیری از اجرای اولیه useEffect
+  const isInitialLoad = useRef(true);
 
   const { messages, setMessages, input, handleInputChange, handleSubmit, isLoading } = useChat({
     api: '/api/chat',
     body: { chatId: activeChatId },
-    onFinish: async (message) => {
-      if (!activeChatId && user) {
+    // 2. در onFinish فقط لیست چت‌ها را آپدیت می‌کنیم
+    onFinish: async () => {
+      if (user) {
         const updatedChats = await getChats(user.id);
         setChats(updatedChats);
-        const newChat = updatedChats.find(chat =>
-          chat.messages.some((m: any) => m.id === message.id)
-        );
-        if (newChat) {
-          router.push(`/?chatId=${newChat.id}`);
+
+        // اگر چت جدیدی بود، به URL جدید ریدایرکت می‌کنیم
+        if (!activeChatId && updatedChats.length > chats.length) {
+            // پیدا کردن جدیدترین چت (معمولاً آخرین چت در آرایه مرتب شده بر اساس تاریخ)
+            const newChat = updatedChats.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+            if (newChat) {
+                // با replace به جای push تا در تاریخچه مرورگر برنگردد
+                router.replace(`/?chatId=${newChat.id}`);
+            }
         }
-      } else if (activeChatId && user) {
-        const updatedChats = await getChats(user.id);
-        setChats(updatedChats);
       }
     }
   });
 
+  // افکت برای گرفتن اطلاعات اولیه کاربر و چت‌ها
   useEffect(() => {
     const fetchData = async () => {
       const fetchedUser = await getOrCreateUser();
@@ -55,16 +57,33 @@ function ChatAppContent() {
     fetchData();
   }, []);
 
+  // 3. افکت اصلاح شده برای بارگذاری پیام‌های یک چت
   useEffect(() => {
+    // در بارگذاری اولیه کامپوننت، این افکت را اجرا نکن
+    if (isInitialLoad.current) {
+        isInitialLoad.current = false;
+        // اگر chatId وجود داشت، پیام‌ها را برای اولین بار لود کن
+        if (activeChatId) {
+            const chat = chats.find(c => c.id === activeChatId);
+            if (chat && chat.messages.length > 0) {
+                setMessages(chat.messages);
+            }
+        }
+        return;
+    }
+
+    // این افکت فقط زمانی اجرا شود که کاربر بین چت‌ها جابجا می‌شود (activeChatId تغییر می‌کند)
     if (activeChatId) {
       const chat = chats.find(c => c.id === activeChatId);
-      if (chat && chat.messages) {
+      // فقط در صورتی پیام‌ها را ست کن که از `useChat` خالی نباشند (یعنی کاربر در حال چت نباشد)
+      if (chat && !isLoading) {
         setMessages(chat.messages);
       }
     } else {
+      // اگر به صفحه اصلی برگشتیم (چت جدید) پیام‌ها را خالی کن
       setMessages([]);
     }
-  }, [activeChatId, chats, setMessages]);
+  }, [activeChatId, chats]); // setMessages و isLoading حذف شد تا تریگرهای ناخواسته کم شوند
 
 
   const handleNewChat = () => {
@@ -106,10 +125,8 @@ function ChatAppContent() {
   );
 }
 
-// 4. کامپوننت اصلی که فقط نقش Wrapper را بازی می‌کند
 export default function Home() {
   return (
-    // Suspense باعث می‌شود تا زمانی که پارامترهای URL لود نشده‌اند، fallback نمایش داده شود
     <Suspense fallback={<div className="flex h-screen w-screen items-center justify-center">در حال راه‌اندازی...</div>}>
       <ChatAppContent />
     </Suspense>
