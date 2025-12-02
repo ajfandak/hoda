@@ -1,46 +1,63 @@
-'use client';
+// فایل: components/code-block.tsx
+'use client'
 
-import { FC, memo } from 'react';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism'; // تم وی‌اس‌کد
-import { Check, Copy } from 'lucide-react';
-import { useCopyToClipboard } from '@/lib/hooks/use-copy-to-clipboard'; // این هوک را که قبلا دادم بسازید
+import { FC, memo } from 'react'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { oneDark } from 'react-syntax-highlighter/dist/cjs/styles/prism'
+import { useCopyToClipboard } from '@/lib/hooks/use-copy-to-clipboard'
+import { Button } from '@/components/ui/button'
+import { Check, Copy } from 'lucide-react'
 
-interface CodeBlockProps {
-  language: string;
-  value: string;
+interface Props {
+  language: string
+  value: string
 }
 
-export const CodeBlock: FC<CodeBlockProps> = memo(({ language, value }) => {
-  const { isCopied, copyToClipboard } = useCopyToClipboard({ timeout: 2000 });
+const CodeBlock: FC<Props> = memo(({ language, value }) => {
+  const { isCopied, copyToClipboard } = useCopyToClipboard({ timeout: 2000 })
 
   const onCopy = () => {
-    if (isCopied) return;
-    copyToClipboard(value);
-  };
+    if (isCopied) return
+    copyToClipboard(value)
+  }
 
   return (
-    <div className="relative w-full font-sans code-block my-4 rounded-lg overflow-hidden border border-zinc-800">
-      <div className="flex items-center justify-between w-full px-4 py-2 bg-zinc-900 text-zinc-400 border-b border-zinc-800">
-        <span className="text-xs lowercase font-mono">{language}</span>
-        <button
-          className="flex items-center gap-1 hover:text-zinc-100 transition-colors"
-          onClick={onCopy}
-        >
-          {isCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-          <span className="text-xs">{isCopied ? 'کپی شد' : 'کپی'}</span>
-        </button>
+    <div className="relative w-full font-sans text-sm" dir="ltr">
+      <div className="flex w-full items-center justify-between bg-zinc-800 text-zinc-100 px-4">
+        <span className="text-xs lowercase">{language}</span>
+        <div className="flex items-center">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-xs hover:bg-zinc-700 focus-visible:ring-1 focus-visible:ring-slate-700 focus-visible:ring-offset-0"
+            onClick={onCopy}
+          >
+            {isCopied ? <Check size={16} /> : <Copy size={16} />}
+            <span className="sr-only">کپی کردن کد</span>
+          </Button>
+        </div>
       </div>
       <SyntaxHighlighter
         language={language}
-        style={vscDarkPlus}
-        customStyle={{ margin: 0, borderRadius: 0, fontSize: '14px' }}
-        PreTag="div"
+        style={oneDark}
+        customStyle={{
+          margin: 0,
+          width: '100%',
+          background: 'transparent',
+          padding: '1.5rem 1rem'
+        }}
+        codeTagProps={{
+          style: {
+            fontSize: '0.9rem',
+            fontFamily: 'var(--font-mono)'
+          }
+        }}
       >
         {value}
       </SyntaxHighlighter>
     </div>
-  );
-});
+  )
+})
 
-CodeBlock.displayName = 'CodeBlock';
+CodeBlock.displayName = 'CodeBlock'
+export { CodeBlock }

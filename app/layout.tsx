@@ -1,12 +1,16 @@
+// فایل: app/layout.tsx
 import type { Metadata } from "next";
-import { GeistSans } from 'geist/font/sans'; // ایمپورت صحیح
-import { GeistMono } from 'geist/font/mono'; // ایمپورت صحیح
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
+import { ThemeProvider } from "@/components/theme-provider";
+import { TooltipProvider } from "@/components/ui/tooltip";
+
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Hoda Platform",
-  description: "AI Chat Application",
+  title: "Hoda AI Platform",
+  description: "A chat application built with Next.js",
 };
 
 export default function RootLayout({
@@ -15,18 +19,26 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      {/* 
-        متغیرهای فونت باید به این شکل به body اضافه شوند
-        تا در کل برنامه در دسترس باشند.
-      */}
-      <body className={cn(
-          "font-sans antialiased",
-          GeistSans.variable, 
-          GeistMono.variable
+    <html lang="fa" dir="rtl" suppressHydrationWarning>
+      <body
+        className={cn(
+          "min-h-screen bg-background font-sans antialiased",
+          inter.className
         )}
       >
-        {children}
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark" // تم پیش‌فرض را تاریک قرار دادیم
+          enableSystem
+        >
+          <TooltipProvider delayDuration={0}>
+            <div className="flex flex-col min-h-screen">
+              <main className="flex flex-col flex-1 bg-muted/50">
+                {children}
+              </main>
+            </div>
+          </TooltipProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

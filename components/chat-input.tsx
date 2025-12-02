@@ -1,82 +1,85 @@
 // فایل: components/chat-input.tsx
-
-'use client';
-
-import * as React from 'react';
-import Textarea from 'react-textarea-autosize';
-
-import { useEnterSubmit } from '@/lib/hooks/use-enter-submit';
-import { cn } from '@/lib/utils';
-import { Button, buttonVariants } from '@/components/ui/button';
+import * as React from 'react'
+import Textarea from 'react-textarea-autosize'
+import { useEnterSubmit } from '@/lib/hooks/use-enter-submit'
+import { cn } from '@/lib/utils'
+import { Button, buttonVariants } from '@/components/ui/button'
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger
-} from '@/components/ui/tooltip';
-import { IconArrowElbow } from '@/components/ui/icons';
+} from '@/components/ui/tooltip'
+import { IconArrowElbow } from '@/components/ui/icons'
 
-interface ChatInputProps {
-  input: string;
-  handleInputChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
-  handleSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
-  isLoading: boolean;
+export interface ChatInputProps
+  extends Omit<React.ComponentProps<'div'>, 'onSubmit'> {
+  input: string
+  setInput: (value: string) => void
+  onSubmit: (value: string) => Promise<void>
+  isLoading: boolean
 }
 
-export default function ChatInput({
+export function ChatInput({
   input,
-  handleInputChange,
-  handleSubmit,
-  isLoading
+  setInput,
+  onSubmit,
+  isLoading,
+  className,
+  ...props
 }: ChatInputProps) {
-  const { formRef, onKeyDown } = useEnterSubmit();
-  const inputRef = React.useRef<HTMLTextAreaElement>(null);
+  const { formRef, onKeyDown } = useEnterSubmit()
+  const inputRef = React.useRef<HTMLTextAreaElement>(null)
 
   React.useEffect(() => {
     if (inputRef.current) {
-      inputRef.current.focus();
+      inputRef.current.focus()
     }
-  }, []);
+  }, [])
 
   return (
-    <form onSubmit={handleSubmit} ref={formRef}>
-      <div className="relative flex max-h-60 w-full grow flex-col overflow-hidden bg-background px-8 sm:rounded-md sm:border sm:px-12">
+    <form
+      onSubmit={async e => {
+        e.preventDefault()
+        if (!input?.trim()) return
+        await onSubmit(input)
+        setInput('')
+      }}
+      ref={formRef}
+    >
+      <div
+        className="relative flex max-h-60 w-full grow flex-col overflow-hidden bg-background px-8 sm:rounded-md sm:border sm:px-12"
+        {...props}
+      >
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               variant="outline"
               size="icon"
               className="absolute left-0 top-4 h-8 w-8 rounded-full bg-background p-0 sm:left-4"
-              type="submit"
-              disabled={isLoading || input === ''}
+              disabled={isLoading}
             >
               <IconArrowElbow />
-              <span className="sr-only">Send message</span>
+              <span className="sr-only">ارسال پیام</span>
             </Button>
           </TooltipTrigger>
           <TooltipContent>ارسال پیام</TooltipContent>
         </Tooltip>
-        
-        {/* ===== تغییرات در اینجا اعمال شده است ===== */}
         <Textarea
           ref={inputRef}
           tabIndex={0}
           onKeyDown={onKeyDown}
           rows={1}
           value={input}
-          onChange={handleInputChange}
-          placeholder="پیام خود را بنویسید..."
+          onChange={e => setInput(e.target.value)}
+          placeholder="پیام خود را اینجا بنویسید..."
           spellCheck={false}
-          // 1. اضافه کردن dir="rtl" برای پشتیبانی از زبان فارسی
-          // 2. اضافه کردن pl-12 برای ایجاد فاصله از دکمه سمت چپ
-          dir="rtl"
-          className={cn(
-            'w-full resize-none bg-transparent px-4 py-[1.3rem] focus-within:outline-none sm:text-sm',
-            'pl-12 pr-4 md:pl-12 md:pr-4' // اطمینان از وجود پدینگ در چپ
-          )}
+          className="min-h-[60px] w-full resize-none bg-transparent px-4 py-[1.3rem] focus-within:outline-none sm:text-sm"
+          dir="rtl" // برای حل مشکل تداخل راست‌چین
         />
-        {/* ============================================= */}
-
+        <div className="absolute right-0 top-4 sm:right-4">
+          {/* اینجا می‌توانید دکمه‌های دیگری مثل توقف را اضافه کنید */}
+        </div>
       </div>
     </form>
-  );
+  )
 }

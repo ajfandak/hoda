@@ -1,6 +1,8 @@
 "use server";
 
 import { db } from "@/lib/db";
+import { type Message } from 'ai'
+
 
 // دریافت یا ساخت کاربر تستی
 export async function getOrCreateUser() {
@@ -21,6 +23,14 @@ export async function getOrCreateUser() {
   return user;
 }
 
+ export async function getMessages(): Promise<Message[]> {
+      // اینجا منطق دریافت پیام‌ها از دیتابیس شما قرار خواهد گرفت.
+      // مثلا: const messages = await db.query.messages.findMany();
+      return []
+
+     }  
+
+  
 // دریافت لیست چت‌های یک کاربر
 export async function getChats(userId: string) {
   try {
@@ -38,4 +48,5 @@ export async function getChats(userId: string) {
     console.error("Error fetching chats:", error);
     return [];
   }
+  
 }

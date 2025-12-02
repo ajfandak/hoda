@@ -1,30 +1,41 @@
-// مسیر فایل: lib/hooks/use-copy-to-clipboard.ts
-import { useState } from 'react';
+'use client'
 
-export interface useCopyToClipboardProps {
-  timeout?: number;
-}
+import { useState, useEffect } from 'react'
 
-export function useCopyToClipboard({ timeout = 2000 }: useCopyToClipboardProps = {}) {
-  const [isCopied, setIsCopied] = useState(false);
+export function useCopyToClipboard({
+  timeout = 2000
+}: {
+  timeout?: number
+}) {
+  const [isCopied, setIsCopied] = useState(false)
 
   const copyToClipboard = (value: string) => {
     if (typeof window === 'undefined' || !navigator.clipboard?.writeText) {
-      return;
+      return
     }
-
     if (!value) {
-      return;
+      return
+    }
+    navigator.clipboard.writeText(value).then(() => {
+      setIsCopied(true)
+    })
+  }
+
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout | null = null
+
+    if (isCopied) {
+      timeoutId = setTimeout(() => {
+        setIsCopied(false)
+      }, timeout)
     }
 
-    navigator.clipboard.writeText(value).then(() => {
-      setIsCopied(true);
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
+    }
+  }, [isCopied, timeout])
 
-      setTimeout(() => {
-        setIsCopied(false);
-      }, timeout);
-    });
-  };
-
-  return { isCopied, copyToClipboard };
+  return { isCopied, copyToClipboard }
 }
