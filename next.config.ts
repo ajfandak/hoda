@@ -2,17 +2,15 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
-};
-
-const nextConfig = {
   eslint: {
-// Warning: This allows production builds to successfully complete even if
-// your project has ESLint errors.
-ignoreDuringBuilds: true,
+    // این گزینه باعث می‌شود بیلد حتی با وجود خطاهای لینتر انجام شود
+    ignoreDuringBuilds: true,
   },
-  // ... بقیه تنظیمات
+  typescript: {
+    // (اختیاری) این گزینه باعث می‌شود بیلد حتی با وجود خطاهای تایپ انجام شود
+    // اگر باز هم گیر کرد، این خط را از کامنت درآورید:
+    // ignoreBuildErrors: true,
+  }
 };
-
-
 
 export default nextConfig;
