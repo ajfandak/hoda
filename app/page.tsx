@@ -1,78 +1,117 @@
-"use client";
+// فایل: app/page.tsx
 
-import { useState, useEffect } from "react";
-import { getOrCreateUser } from "@/app/actions"; 
+'use client';
+
+import { useChat } from 'ai/react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { useEffect, useState, Suspense } from 'react'; // Suspense اضافه شد
+
+// 1. ایمپورت کردن اکشن‌های سرور
+import { getOrCreateUser, getChats } from '@/app/actions';
+
+// 2. ایمپورت کامپوننت‌ها
 import Sidebar from "@/components/sidebar";
-import ChatScreen from "@/components/chat-screen";
-import { Menu } from "lucide-react";
+import { ChatScreen } from '@/components/chat-screen';
+import ChatInput from '@/components/chat-input';
 
-export default function Home() {
-  const [userId, setUserId] = useState<string | null>(null);
-  const [activeChatId, setActiveChatId] = useState<string | null>(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+// 3. ساخت یک کامپوننت داخلی که منطق اصلی را نگه می‌دارد
+function ChatAppContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const activeChatId = searchParams.get('chatId');
 
-  useEffect(() => {
-    async function initUser() {
-      try {
-        const user = await getOrCreateUser();
-        if (user) {
-          setUserId(user.id);
+  const [user, setUser] = useState<any>(null);
+  const [chats, setChats] = useState<any[]>([]);
+
+  const { messages, setMessages, input, handleInputChange, handleSubmit, isLoading } = useChat({
+    api: '/api/chat',
+    body: { chatId: activeChatId },
+    onFinish: async (message) => {
+      if (!activeChatId && user) {
+        const updatedChats = await getChats(user.id);
+        setChats(updatedChats);
+        const newChat = updatedChats.find(chat =>
+          chat.messages.some((m: any) => m.id === message.id)
+        );
+        if (newChat) {
+          router.push(`/?chatId=${newChat.id}`);
         }
-      } catch (error) {
-        console.error("Failed to init user:", error);
+      } else if (activeChatId && user) {
+        const updatedChats = await getChats(user.id);
+        setChats(updatedChats);
       }
     }
-    initUser();
+  });
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const fetchedUser = await getOrCreateUser();
+      setUser(fetchedUser);
+      if (fetchedUser) {
+        const fetchedChats = await getChats(fetchedUser.id);
+        setChats(fetchedChats);
+      }
+    };
+    fetchData();
   }, []);
 
-  return (
-    <div className="flex h-screen bg-[#020817] text-white overflow-hidden">
-      {/* Mobile Sidebar Overlay */}
-      {isSidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 md:hidden"
-          onClick={() => setIsSidebarOpen(false)}
-        />
-      )}
+  useEffect(() => {
+    if (activeChatId) {
+      const chat = chats.find(c => c.id === activeChatId);
+      if (chat && chat.messages) {
+        setMessages(chat.messages);
+      }
+    } else {
+      setMessages([]);
+    }
+  }, [activeChatId, chats, setMessages]);
 
-      {/* Sidebar */}
-      <div
-        className={`fixed inset-y-0 right-0 z-50 w-64 transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${
-          isSidebarOpen ? "translate-x-0" : "translate-x-full"
-        } md:block border-l border-gray-800 bg-[#0d1117]`}
-      >
-        {userId && (
-          <Sidebar
-            userId={userId}
-            // تغییر مهم اینجاست: تبدیل null به undefined
-            activeChatId={activeChatId || undefined}
-            onSelectChat={(id) => {
-              setActiveChatId(id);
-              setIsSidebarOpen(false);
-            }}
-            onNewChat={() => {
-              setActiveChatId(null);
-              setIsSidebarOpen(false);
-            }}
-          />
-        )}
+
+  const handleNewChat = () => {
+    router.push('/');
+  };
+
+  if (!user) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-background text-foreground">
+        در حال بارگذاری...
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
+      <div className="hidden md:block md:w-64 border-r">
+        <Sidebar
+          user={user}
+          chats={chats}
+          activeChatId={activeChatId || undefined}
+          onNewChat={handleNewChat}
+        />
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col h-full relative">
-        {/* Mobile Header */}
-        <div className="md:hidden flex items-center p-4 border-b border-gray-800 bg-[#0d1117]">
-          <button onClick={() => setIsSidebarOpen(true)} className="text-gray-300">
-            <Menu className="h-6 w-6" />
-          </button>
-          <span className="mr-4 font-bold text-gray-100">هدی</span>
-        </div>
+      <div className="flex flex-1 flex-col">
+        <main className="flex-1 overflow-y-auto">
+          <ChatScreen messages={messages} />
+        </main>
 
-        {/* Chat Screen */}
-        <div className="flex-1 overflow-hidden relative">
-          <ChatScreen chatId={activeChatId || ""} />
-        </div>
+        <ChatInput
+          input={input}
+          handleInputChange={handleInputChange}
+          handleSubmit={handleSubmit}
+          isLoading={isLoading}
+        />
       </div>
     </div>
+  );
+}
+
+// 4. کامپوننت اصلی که فقط نقش Wrapper را بازی می‌کند
+export default function Home() {
+  return (
+    // Suspense باعث می‌شود تا زمانی که پارامترهای URL لود نشده‌اند، fallback نمایش داده شود
+    <Suspense fallback={<div className="flex h-screen w-screen items-center justify-center">در حال راه‌اندازی...</div>}>
+      <ChatAppContent />
+    </Suspense>
   );
 }

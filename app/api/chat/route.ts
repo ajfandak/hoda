@@ -1,47 +1,21 @@
-import { createOpenAI } from "@ai-sdk/openai";
-import { streamText } from "ai";
-import { db } from "@/lib/db";
+import { createOpenAI } from '@ai-sdk/openai';
+import { streamText } from 'ai';
 
-// تنظیم کلاینت برای OpenRouter
-const openrouter = createOpenAI({
+// تنظیم کلاینت OpenRouter
+const openai = createOpenAI({
+  baseURL: 'https://openrouter.ai/api/v1',
   apiKey: process.env.OPENROUTER_API_KEY,
-  baseURL: "https://openrouter.ai/api/v1",
 });
 
+export const maxDuration = 30;
+
 export async function POST(req: Request) {
-  const { messages, chatId } = await req.json();
+  const { messages } = await req.json();
 
-  // 1. ذخیره پیام کاربر در دیتابیس (اگر قبلاً ذخیره نشده باشد)
-  // آخرین پیام، پیام جدید کاربر است
-  const lastMessage = messages[messages.length - 1];
-  
-  // اطمینان از وجود chatId
-  if (chatId) {
-      await db.message.create({
-        data: {
-          content: lastMessage.content,
-          role: "user",
-          chatId: chatId,
-        },
-      });
-  }
-
-  // 2. درخواست به هوش مصنوعی
   const result = await streamText({
-    model: openrouter("google/gemini-2.0-flash-exp:free"), // یا هر مدل دیگری که دارید
+    // استفاده از مدل 'auto' برای انتخاب خودکار بهترین مدل موجود
+    model: openai('openrouter/auto'),
     messages,
-    async onFinish({ text }) {
-      // 3. ذخیره پاسخ هوش مصنوعی در دیتابیس پس از اتمام
-      if (chatId && text) {
-        await db.message.create({
-          data: {
-            content: text,
-            role: "assistant",
-            chatId: chatId,
-          },
-        });
-      }
-    },
   });
 
   return result.toDataStreamResponse();
