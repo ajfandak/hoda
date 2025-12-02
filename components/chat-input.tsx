@@ -1,44 +1,82 @@
-"use client";
+// فایل: components/chat-input.tsx
 
-import { Send, Loader2 } from "lucide-react";
+'use client';
+
+import * as React from 'react';
+import Textarea from 'react-textarea-autosize';
+
+import { useEnterSubmit } from '@/lib/hooks/use-enter-submit';
+import { cn } from '@/lib/utils';
+import { Button, buttonVariants } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger
+} from '@/components/ui/tooltip';
+import { IconArrowElbow } from '@/components/ui/icons';
 
 interface ChatInputProps {
   input: string;
-  handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  handleInputChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
   handleSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
   isLoading: boolean;
 }
 
-export default function ChatInput({ input, handleInputChange, handleSubmit, isLoading }: ChatInputProps) {
+export default function ChatInput({
+  input,
+  handleInputChange,
+  handleSubmit,
+  isLoading
+}: ChatInputProps) {
+  const { formRef, onKeyDown } = useEnterSubmit();
+  const inputRef = React.useRef<HTMLTextAreaElement>(null);
+
+  React.useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, []);
+
   return (
-    <div className="p-4 border-t border-gray-800 bg-[#0d1117]">
-      <div className="max-w-3xl mx-auto">
-        <form onSubmit={handleSubmit} className="relative flex items-center">
-          <input
-            className="w-full bg-[#161b22] border border-gray-700 text-gray-100 rounded-xl px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all placeholder:text-gray-500"
-            placeholder="پیامی بنویسید..."
-            value={input}
-            onChange={handleInputChange}
-            disabled={isLoading}
-          />
-          <button
-            type="submit"
-            disabled={isLoading || !input.trim()}
-            className="absolute left-2 p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:hover:bg-blue-600 transition-colors"
-          >
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
-          </button>
-        </form>
-        <div className="text-center mt-2">
-          <p className="text-xs text-gray-500">
-            هوش مصنوعی ممکن است اشتباه کند. لطفاً اطلاعات مهم را بررسی کنید.
-          </p>
-        </div>
+    <form onSubmit={handleSubmit} ref={formRef}>
+      <div className="relative flex max-h-60 w-full grow flex-col overflow-hidden bg-background px-8 sm:rounded-md sm:border sm:px-12">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              className="absolute left-0 top-4 h-8 w-8 rounded-full bg-background p-0 sm:left-4"
+              type="submit"
+              disabled={isLoading || input === ''}
+            >
+              <IconArrowElbow />
+              <span className="sr-only">Send message</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>ارسال پیام</TooltipContent>
+        </Tooltip>
+        
+        {/* ===== تغییرات در اینجا اعمال شده است ===== */}
+        <Textarea
+          ref={inputRef}
+          tabIndex={0}
+          onKeyDown={onKeyDown}
+          rows={1}
+          value={input}
+          onChange={handleInputChange}
+          placeholder="پیام خود را بنویسید..."
+          spellCheck={false}
+          // 1. اضافه کردن dir="rtl" برای پشتیبانی از زبان فارسی
+          // 2. اضافه کردن pl-12 برای ایجاد فاصله از دکمه سمت چپ
+          dir="rtl"
+          className={cn(
+            'w-full resize-none bg-transparent px-4 py-[1.3rem] focus-within:outline-none sm:text-sm',
+            'pl-12 pr-4 md:pl-12 md:pr-4' // اطمینان از وجود پدینگ در چپ
+          )}
+        />
+        {/* ============================================= */}
+
       </div>
-    </div>
+    </form>
   );
 }
